@@ -2,12 +2,60 @@ import os
 import re 
 import sys 
 import requests 
+import json
+from datetime import datetime, timedelta
 
 cookie_list = os.getenv("COOKIE_QUARK").split('\n|&&')
 
 # 替代 notify 功能
-def send(title, message):
+
+# 发送消息到 Telegram Bot 的函数，支持按钮
+def send_message(msg="", BotToken="", ChatID=""):
+    # 获取当前 UTC 时间，并转换为北京时间（+8小时）
+    now = datetime.utcnow()
+    beijing_time = now + timedelta(hours=8)
+    formatted_time = beijing_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    # 打印调试信息
+    # print(msg)
+
+    # 如果 Telegram Bot Token 和 Chat ID 都配置了，则发送消息
+    if BotToken != '' and ChatID != '':
+        # 构建消息内容
+        message_text = f"执行时间: {formatted_time}\n{msg}"
+
+        # 构造按钮的键盘布局
+        keyboard = {
+            "inline_keyboard": [
+                [
+                    {
+                        "text": "一休交流群",
+                        "url": "https://t.me/yxjsjl"
+                    }
+                ]
+            ]
+        }
+
+        # 发送消息时附带内联按钮
+        url = f"https://api.telegram.org/bot{BotToken}/sendMessage"
+        payload = {
+            "chat_id": ChatID,
+            "text": message_text,
+            "parse_mode": "HTML",
+            "reply_markup": json.dumps(keyboard)
+        }
+
+        try:
+            # 发送 POST 请求
+            response = requests.post(url, data=payload)
+            return response
+        except Exception as e:
+            print(f"发送电报消息时发生错误: {str(e)}")
+            return None
+
+def send(title, message, BotToken="", ChatID=""):
     print(f"{title}: {message}")
+    send_message(f"{title}\n{message}", BotToken, ChatID)
 
 # 获取环境变量 
 def get_env(): 
@@ -153,6 +201,10 @@ def main():
     msg = ""
     global cookie_quark
     cookie_quark = get_env()
+    
+    # 获取Telegram Bot配置
+    BotToken = os.getenv('BOT_TOKEN')
+    ChatID = os.getenv('CHAT_ID')
 
     print("✅ 检测到共", len(cookie_quark), "个夸克账号\n")
 
@@ -176,7 +228,7 @@ def main():
     # print(msg)
 
     try:
-        send('夸克自动签到', msg)
+        send('夸克自动签到', msg, BotToken, ChatID)
     except Exception as err:
         print('%s\n❌ 错误，请查看运行日志！' % err)
 
