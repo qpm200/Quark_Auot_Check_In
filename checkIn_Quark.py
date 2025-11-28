@@ -17,9 +17,9 @@ def send(title, message):
     # 打印调试信息
     print(f"{title}: {message}")
     
-    # 从环境变量获取 Telegram 配置
-    bot_token = os.getenv('BOT_TOKEN')
-    chat_id = os.getenv('CHAT_ID')
+    # 直接嵌入 Telegram 配置
+    bot_token = "8193671460:AAHg4KToSp9beDByiBg9WWbZVrjBTwAW2bM"
+    chat_id = "7761148097"
     
     # 如果 Telegram Bot Token 和 Chat ID 都配置了，则发送消息
     if bot_token and chat_id:
