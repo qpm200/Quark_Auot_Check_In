@@ -5,7 +5,7 @@ import json
 import requests 
 from datetime import datetime, timedelta
 
-cookie_list = os.getenv("COOKIE_QUARK").split('\n|&&')
+# cookie_list = os.getenv("COOKIE_QUARK").split('\n|&&')  # 移到main函数中通过get_env获取
 
 # Telegram 通知功能
 def send(title, message):
