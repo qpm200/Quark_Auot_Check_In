@@ -1,61 +1,61 @@
 import os 
 import re 
 import sys 
-import requests 
 import json
+import requests 
 from datetime import datetime, timedelta
 
 cookie_list = os.getenv("COOKIE_QUARK").split('\n|&&')
 
-# 替代 notify 功能
-
-# 发送消息到 Telegram Bot 的函数，支持按钮
-def send_message(msg="", BotToken="", ChatID=""):
+# Telegram 通知功能
+def send(title, message):
     # 获取当前 UTC 时间，并转换为北京时间（+8小时）
     now = datetime.utcnow()
     beijing_time = now + timedelta(hours=8)
     formatted_time = beijing_time.strftime("%Y-%m-%d %H:%M:%S")
-
+    
     # 打印调试信息
-    # print(msg)
-
-    # 如果 Telegram Bot Token 和 Chat ID 都配置了，则发送消息
-    if BotToken != '' and ChatID != '':
-        # 构建消息内容
-        message_text = f"执行时间: {formatted_time}\n{msg}"
-
-        # 构造按钮的键盘布局
-        keyboard = {
-            "inline_keyboard": [
-                [
-                    {
-                        "text": "一休交流群",
-                        "url": "https://t.me/yxjsjl"
-                    }
-                ]
-            ]
-        }
-
-        # 发送消息时附带内联按钮
-        url = f"https://api.telegram.org/bot{BotToken}/sendMessage"
-        payload = {
-            "chat_id": ChatID,
-            "text": message_text,
-            "parse_mode": "HTML",
-            "reply_markup": json.dumps(keyboard)
-        }
-
-        try:
-            # 发送 POST 请求
-            response = requests.post(url, data=payload)
-            return response
-        except Exception as e:
-            print(f"发送电报消息时发生错误: {str(e)}")
-            return None
-
-def send(title, message, BotToken="", ChatID=""):
     print(f"{title}: {message}")
-    send_message(f"{title}\n{message}", BotToken, ChatID)
+    
+    # 从环境变量获取 Telegram 配置
+    bot_token = os.getenv('BOT_TOKEN')
+    chat_id = os.getenv('CHAT_ID')
+    
+    # 如果 Telegram Bot Token 和 Chat ID 都配置了，则发送消息
+    if bot_token and chat_id:
+        try:
+            # 构建消息内容
+            message_text = f"<b>执行时间:</b> {formatted_time}\n\n<b>{title}</b>\n{message}"
+            
+            # 构造按钮的键盘布局
+            keyboard = {
+                "inline_keyboard": [
+                    [
+                        {
+                            "text": "夸克网盘",
+                            "url": "https://pan.quark.cn/"
+                        }
+                    ]
+                ]
+            }
+            
+            # 发送消息的 URL
+            send_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            
+            # 构造请求数据
+            payload = {
+                "chat_id": chat_id,
+                "text": message_text,
+                "parse_mode": "HTML",
+                "reply_markup": json.dumps(keyboard)
+            }
+            
+            # 发送请求
+            response = requests.post(send_url, data=payload)
+            response.raise_for_status()
+            print(f"✅ Telegram 通知发送成功")
+        except Exception as e:
+            print(f"❌ 发送 Telegram 消息时发生错误: {str(e)}")
 
 # 获取环境变量 
 def get_env(): 
@@ -164,28 +164,31 @@ class Quark:
         # 每日领空间
         growth_info = self.get_growth_info()
         if growth_info:
+            user_type = "<b>88VIP用户</b>" if growth_info['88VIP'] else "普通用户"
             log += (
-                f" {'88VIP' if growth_info['88VIP'] else '普通用户'} {self.param.get('user')}\n"
-                f"💾 网盘总容量：{self.convert_bytes(growth_info['total_capacity'])}，"
-                f"签到累计容量：")
+                f"📌 {user_type} {self.param.get('user', '未知用户')}\n"
+                f"💾 <b>网盘总容量</b>：{self.convert_bytes(growth_info['total_capacity'])}\n"
+                f"📈 <b>签到累计容量</b>：")
             if "sign_reward" in growth_info['cap_composition']:
                 log += f"{self.convert_bytes(growth_info['cap_composition']['sign_reward'])}\n"
             else:
                 log += "0 MB\n"
             if growth_info["cap_sign"]["sign_daily"]:
                 log += (
-                    f"✅ 签到日志: 今日已签到+{self.convert_bytes(growth_info['cap_sign']['sign_daily_reward'])}，"
-                    f"连签进度({growth_info['cap_sign']['sign_progress']}/{growth_info['cap_sign']['sign_target']})\n"
+                    f"✅ <b>签到状态</b>: 今日已签到\n"
+                    f"📊 <b>获得容量</b>: +{self.convert_bytes(growth_info['cap_sign']['sign_daily_reward'])}\n"
+                    f"🔥 <b>连签进度</b>: {growth_info['cap_sign']['sign_progress']}/{growth_info['cap_sign']['sign_target']}\n"
                 )
             else:
                 sign, sign_return = self.get_growth_sign()
                 if sign:
                     log += (
-                        f"✅ 执行签到: 今日签到+{self.convert_bytes(sign_return)}，"
-                        f"连签进度({growth_info['cap_sign']['sign_progress'] + 1}/{growth_info['cap_sign']['sign_target']})\n"
+                        f"✅ <b>签到状态</b>: 签到成功\n"
+                        f"📊 <b>获得容量</b>: +{self.convert_bytes(sign_return)}\n"
+                        f"🔥 <b>连签进度</b>: {growth_info['cap_sign']['sign_progress'] + 1}/{growth_info['cap_sign']['sign_target']}\n"
                     )
                 else:
-                    log += f"❌ 签到异常: {sign_return}\n"
+                    log += f"❌ <b>签到状态</b>: 签到异常 - {sign_return}\n"
         else:
             # log += f"❌ 签到异常: 获取成长信息失败\n"
             raise Exception("❌ 签到异常: 获取成长信息失败")  # 适用于单账号情形，当 cookie 值失效后直接报错，方便通过 github action 的操作系统来进行提醒 如果你使用的是多账号签到的话，不要跟进此更新
@@ -201,38 +204,43 @@ def main():
     msg = ""
     global cookie_quark
     cookie_quark = get_env()
-    
-    # 获取Telegram Bot配置
-    BotToken = os.getenv('BOT_TOKEN')
-    ChatID = os.getenv('CHAT_ID')
 
-    print("✅ 检测到共", len(cookie_quark), "个夸克账号\n")
+    total_accounts = len(cookie_quark)
+    print(f"✅ 检测到共 {total_accounts} 个夸克账号\n")
+    
+    # 添加总览信息
+    msg += f"📋 共检测到 {total_accounts} 个夸克账号\n\n"
 
     i = 0
     while i < len(cookie_quark):
-        # 获取user_data参数
-        user_data = {}  # 用户信息
-        for a in cookie_quark[i].replace(" ", "").split(';'):
-            if not a == '':
-                user_data.update({a[0:a.index('=')]: a[a.index('=') + 1:]})
-        # print(user_data)
-        # 开始任务
-        log = f"🙍🏻‍♂️ 第{i + 1}个账号"
-        msg += log
-        # 登录
-        log = Quark(user_data).do_sign()
-        msg += log + "\n"
+        try:
+            # 获取user_data参数
+            user_data = {}  # 用户信息
+            for a in cookie_quark[i].replace(" ", "").split(';'):
+                if not a == '':
+                    user_data.update({a[0:a.index('=')]: a[a.index('=') + 1:]})
+            
+            # 开始任务
+            msg += f"🔹 <b>第{i + 1}个账号</b>\n"
+            # 登录
+            log = Quark(user_data).do_sign()
+            msg += log + "\n"
+            
+        except Exception as e:
+            msg += f"❌ 账号 {i + 1} 处理异常: {str(e)}\n\n"
+        finally:
+            i += 1
 
-        i += 1
-
-    # print(msg)
+    # 优化消息结尾
+    if msg.endswith("\n"):
+        msg = msg[:-1]
 
     try:
-        send('夸克自动签到', msg, BotToken, ChatID)
+        send('夸克自动签到', msg)
     except Exception as err:
-        print('%s\n❌ 错误，请查看运行日志！' % err)
+        print(f'{str(err)}\n❌ 错误，请查看运行日志！')
 
-    return msg[:-1]
+    return msg
 
 
 if __name__ == "__main__":
